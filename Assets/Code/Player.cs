@@ -106,7 +106,7 @@ public class Player : MonoBehaviour
         shootTimer = totalShootTimer;
         animator = this.GetComponent<Animator>();
         shotAudio = this.GetComponent<AudioSource>();
-        Physics2D.IgnoreLayerCollision(10, 11, true);
+        //Physics2D.IgnoreLayerCollision(10, 11, true);
     }
 
     void Update()
@@ -129,6 +129,7 @@ public class Player : MonoBehaviour
         {
             _currentJumpForce = _jumpForce;
             _releasedJump = false;
+            Debug.DrawLine(transform.position + new Vector3(0.0f, 0.0f, 1.0f), transform.position + Vector3.up * 2.0f + new Vector3(0.0f, 0.0f, 1.0f), Color.red);
         }
 
         if (!_grounded && !_releasedJump)
@@ -210,47 +211,61 @@ public class Player : MonoBehaviour
             _jump = false;
         }
 
-        if (_wantToFall)
+        Transform transform;
+        if (IsOnPlatform(out transform))
         {
-            Physics2D.IgnoreLayerCollision(10, 11, true);
-            _wantToFall = false;
+            //Debug.Log("On Platform");
+
+            if (_wantToFall)
+            {
+                //Physics2D.IgnoreLayerCollision(10, 11, true);
+                ChangeLayersOfChildrens(transform, "PlatformGhost");
+                _wantToFall = false;
+            }
+            else
+            {
+                //Physics2D.IgnoreLayerCollision(10, 11, false);
+                ChangeLayersOfChildrens(transform, "Platform");
+            }
         }
-        else if (IsOnPlatform())
+        else if (IsUnderPlatform(out transform))
         {
-            Debug.Log("On Platform");
-            //ChangeLayersOfChildrens(transform, "Default");
-            Physics2D.IgnoreLayerCollision(10, 11, false);
-        }
-        else if (IsUnderPlatform())
-        {
-            Debug.Log("Under Platform");
-            Physics2D.IgnoreLayerCollision(10, 11, true);
+            //Debug.Log("Under Platform");
+            //Physics2D.IgnoreLayerCollision(10, 11, true);
+            ChangeLayersOfChildrens(transform, "PlatformGhost");
         }
     }
 
-    private bool IsNearPlatform(Vector3 direction, Transform[] checkers)
+    private bool IsNearPlatform(Vector3 direction, Transform[] checkers, out Transform transform)
     {
         float smallDistance = 0.05f;
         //Layer
         int platformLayer = LayerMask.NameToLayer("Platform");
+        int platformGhostLayer = LayerMask.NameToLayer("PlatformGhost");
         //Only hit the platform layer
-        int layerMask = 1 << platformLayer;
+        int layerMask = (1 << platformLayer) | (1 << platformGhostLayer);
         foreach (Transform check in checkers)
         {
-            if (Physics2D.Raycast(check.position.ToVector2(), direction.ToVector2(), smallDistance, layerMask))
+            var hit = Physics2D.Raycast(check.position.ToVector2(), direction.ToVector2(), smallDistance, layerMask);
+            if (hit)
+            {
+                transform = hit.transform;
                 return true;
+            }
         }
+
+        transform = null;
         return false;
     }
 
-    private bool IsOnPlatform()
+    private bool IsOnPlatform(out Transform transform)
     {
-        return IsNearPlatform(Vector3.down, _groundChecks);
+        return IsNearPlatform(Vector3.down, _groundChecks, out transform);
     }
 
-    private bool IsUnderPlatform()
+    private bool IsUnderPlatform(out Transform transform)
     {
-        return IsNearPlatform(Vector3.up, _headChecks);
+        return IsNearPlatform(Vector3.up, _headChecks, out transform);
     }
 
     public static void ChangeLayersOfChildrens(Transform trans, string name)
