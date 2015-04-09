@@ -87,7 +87,8 @@ public class Player : MonoBehaviour
     private bool _grounded = true;
     private Transform[] _groundChecks;
     private Transform[] _headChecks;
-    private Transform _wallCheck;
+    private Transform _wallCheckStart;
+    private Transform _wallCheckEnd;
     private Transform _gun;
     private Rigidbody2D _rigidBody;
     private bool _wantToFall = false;
@@ -97,7 +98,8 @@ public class Player : MonoBehaviour
         _rigidBody = this.GetComponent<Rigidbody2D>();
         _groundChecks = transform.Find("GroundChecks").GetComponentsInChildren<Transform>();
         _headChecks = transform.Find("HeadChecks").GetComponentsInChildren<Transform>();
-        _wallCheck = transform.Find("WallCheck");
+        _wallCheckStart = transform.Find("WallChecks").Find("WallCheckStart");
+        _wallCheckEnd = transform.Find("WallChecks").Find("WallCheckEnd");
         _gun = transform.Find("Gun");
         uiBullets = GameObject.Find("UIBullets").GetComponent<UIBullets>();
         message = GameObject.Find("Message").GetComponent<Message>();
@@ -129,7 +131,7 @@ public class Player : MonoBehaviour
         {
             _currentJumpForce = _jumpForce;
             _releasedJump = false;
-            Debug.DrawLine(transform.position + new Vector3(0.0f, 0.0f, 1.0f), transform.position + Vector3.up * 2.0f + new Vector3(0.0f, 0.0f, 1.0f), Color.red);
+            //Debug.DrawLine(transform.position + new Vector3(0.0f, 0.0f, 1.0f), transform.position + Vector3.up * 2.0f + new Vector3(0.0f, 0.0f, 1.0f), Color.red);
         }
 
         if (!_grounded && !_releasedJump)
@@ -193,7 +195,7 @@ public class Player : MonoBehaviour
         if (Input.GetAxis("Vertical") < 0)
             _wantToFall = true;
 
-        _canRun = !Physics2D.Linecast(transform.position, _wallCheck.position, 1 << LayerMask.NameToLayer("Ground"));
+        _canRun = !Physics2D.Linecast(_wallCheckStart.position, _wallCheckEnd.position, 1 << LayerMask.NameToLayer("Ground"));
 
         distanceTraveled = transform.localPosition.x;
         position = transform.localPosition;
@@ -234,6 +236,9 @@ public class Player : MonoBehaviour
             //Physics2D.IgnoreLayerCollision(10, 11, true);
             ChangeLayersOfChildrens(transform, "PlatformGhost");
         }
+
+        if (HasPlatformForward(out transform))
+            ChangeLayersOfChildrens(transform, "PlatformGhost");
     }
 
     private bool IsNearPlatform(Vector3 direction, Transform[] checkers, out Transform transform)
@@ -252,6 +257,25 @@ public class Player : MonoBehaviour
                 transform = hit.transform;
                 return true;
             }
+        }
+
+        transform = null;
+        return false;
+    }
+
+    private bool HasPlatformForward(out Transform transform)
+    {
+        //Layer
+        int platformLayer = LayerMask.NameToLayer("Platform");
+        int platformGhostLayer = LayerMask.NameToLayer("PlatformGhost");
+        //Only hit the platform layer
+        int layerMask = (1 << platformLayer) | (1 << platformGhostLayer);
+
+        var hit = Physics2D.Linecast(_wallCheckStart.position, _wallCheckEnd.position, layerMask);
+        if (hit)
+        {
+            transform = hit.transform;
+            return true;
         }
 
         transform = null;
